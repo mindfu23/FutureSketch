@@ -1,0 +1,4 @@
+to find BB run "arp -a" in command prompt before and after the BB has been plugged in
+then ssh into the ip address
+
+https://192.168.68.115:3000, as an example will get you into the server (actually https://<BB ip address>:3000/)
