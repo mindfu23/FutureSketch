@@ -2,6 +2,7 @@ import ImageToDMX as imdmx
 import numpy as np
 import time
 from knob import RotaryEncoderArray as REA
+import os
 
 # Define multiple encoder pairs (X,Y)
 encoder_pins = [
@@ -55,13 +56,17 @@ pair_colors = [
 # Store last positions
 last_positions = encoders.get_positions().copy()
 frame_counter = 0  # Counter to track frames
-
+time_current=time.time()
+time_thresh=600
+time_switch=0
 while True:
     # Get the current positions - update happens in background thread
     positions = encoders.get_positions()
-    
+    if last_positions!=positions:
+        time_current=time.time()
+        time_switch=0
     # Fade the entire image
-    dat = dat * 0.9995
+    dat = dat * 0.99995
     
     # Get pairs of positions (X,Y coordinates)
     num_pairs = len(positions) // 2
@@ -89,3 +94,18 @@ while True:
     
     # Update last positions
     last_positions = positions.copy()
+
+    if time.time()-time_current>time_thresh:
+        if time_switch==0:
+            # Save dat to a timestamped .npz file
+            save_dir = "unfiltered_saves"
+            os.makedirs(save_dir, exist_ok=True)
+            
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            filename = os.path.join(save_dir, f"display_capture_{timestamp}.npz")
+            np.savez_compressed(filename, display_data=dat)
+            print(f"Display data saved to {filename}")
+            time_switch=1
+
+
+        dat = dat * 0.995
