@@ -3,6 +3,7 @@ import numpy as np
 import time
 from knob import RotaryEncoderArray as REA
 import os
+import random
 
 # Define multiple encoder pairs (X,Y)
 encoder_pins = [
@@ -59,6 +60,7 @@ frame_counter = 0  # Counter to track frames
 time_current=time.time()
 time_thresh=300
 time_switch=0
+last_load_time = 0
 while True:
     # Get the current positions - update happens in background thread
     positions = encoders.get_positions()
@@ -109,8 +111,34 @@ while True:
             print(f"Display data saved to {filename}")
             time_switch=1
 
+        current_time = time.time()
+        if current_time - last_load_time > 100:
+            filtered_dir = "filtered_saves"
+            if os.path.exists(filtered_dir):
+                npz_files = [f for f in os.listdir(filtered_dir) if f.endswith('.npz')]
+                if npz_files:
+                    # Choose a random file
+                    random_file = random.choice(npz_files)
+                    file_path = os.path.join(filtered_dir, random_file)
+                    
+                    try:
+                        # Load the display data
+                        loaded_data = np.load(file_path)
+                        if 'display_data' in loaded_data:
+                            dat = loaded_data['display_data']
+                            print(f"Loaded display data from {file_path}")
+                        else:
+                            print(f"No display_data array found in {file_path}")
+                    except Exception as e:
+                        print(f"Error loading file {file_path}: {e}")
+                    
+                    # Update the last load time
+                    last_load_time = current_time
+
         if (time_dif-time_thresh-time_switch*9>0) and (time_thresh<1000):
             time_switch+=1
             time_thresh+=1
+
+        
 
         dat = dat * 0.995
