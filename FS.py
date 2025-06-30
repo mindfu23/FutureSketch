@@ -51,7 +51,9 @@ pair_colors = [
 ]
 
 # Store last positions to detect changes
-last_positions = None
+
+# Store last positions
+last_positions = encoders.get_positions().copy()
 frame_counter = 0  # Counter to track frames
 
 while True:
@@ -84,3 +86,6 @@ while True:
         # Send the updated image
         screens[0].send(dat.copy().astype(np.uint8))
         frame_counter = 0  # Reset counter
+    
+    # Update last positions
+    last_positions = positions.copy()
