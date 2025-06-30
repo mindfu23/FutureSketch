@@ -57,12 +57,14 @@ pair_colors = [
 last_positions = encoders.get_positions().copy()
 frame_counter = 0  # Counter to track frames
 time_current=time.time()
-time_thresh=600
+time_thresh=300
 time_switch=0
 while True:
     # Get the current positions - update happens in background thread
     positions = encoders.get_positions()
     if last_positions!=positions:
+        if (time_switch>0) and (time_thresh>100):
+            time_thresh=time_thresh*0.9
         time_current=time.time()
         time_switch=0
     # Fade the entire image
@@ -94,8 +96,8 @@ while True:
     
     # Update last positions
     last_positions = positions.copy()
-
-    if time.time()-time_current>time_thresh:
+    time_dif=time.time()-time_current
+    if time_dif>time_thresh:
         if time_switch==0:
             # Save dat to a timestamped .npz file
             save_dir = "unfiltered_saves"
@@ -107,5 +109,8 @@ while True:
             print(f"Display data saved to {filename}")
             time_switch=1
 
+        if (time_dif-time_thresh-time_switch*9>0) and (time_thresh<1000):
+            time_switch+=1
+            time_thresh+=1
 
         dat = dat * 0.995
