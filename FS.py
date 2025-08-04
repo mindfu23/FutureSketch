@@ -85,10 +85,48 @@ while True:
         y = positions[i*2+1]   # Y position
         
         # Use modulo to cycle through colors if there are more pairs than colors
-        color_index = i % len(pair_colors)
-        color_index=buttons[i]
+        #color_index = i % len(pair_colors)
+        color_index = buttons[i*2+1]
         # Set the pixel at the current position to full brightness with unique color
-        dat[x, y, :] = pair_colors[color_index]
+        size = buttons[i*2]
+        
+        # Calculate radius based on size value (0-4)
+        radius = int(size * 0.5)  # Size 0 = radius 0, Size 4 = radius 2
+        
+        # Create coordinates for all pixels within radius
+        y_indices, x_indices = np.ogrid[-radius:radius+1, -radius:radius+1]
+        # Calculate distance from center for each pixel
+        distances = np.sqrt(x_indices**2 + y_indices**2)
+        
+        # Calculate intensity falloff (1.0 at center, decreasing outward)
+        intensity = np.clip(1.0 - distances/max(radius, 1), 0, 1)
+        
+        # Calculate bounds for the spot
+        y_min = max(0, y - radius)
+        y_max = min(dat.shape[1] - 1, y + radius)
+        x_min = max(0, x - radius)
+        x_max = min(dat.shape[0] - 1, x + radius)
+        
+        # Calculate indices within array bounds
+        array_y_indices = np.arange(y_min, y_max + 1)
+        array_x_indices = np.arange(x_min, x_max + 1)
+        
+        # Adjust distances/intensities to match array bounds
+        y_offset = y_min - (y - radius)
+        x_offset = x_min - (x - radius)
+        sub_intensity = intensity[y_offset:y_offset + len(array_y_indices), 
+                                x_offset:x_offset + len(array_x_indices)]
+        
+        # Apply the spot with intensity falloff
+        for color_channel in range(3):
+            color_value = pair_colors[color_index][color_channel]
+            # Broadcasting the intensity across the region
+            intensity_contribution = np.outer(sub_intensity, np.ones(len(array_x_indices))) * color_value
+            # Update the corresponding region in the data array
+            dat[np.ix_(array_x_indices, array_y_indices)][color_channel] = np.maximum(
+                dat[np.ix_(array_x_indices, array_y_indices)][color_channel],
+                intensity_contribution.T.astype(np.uint8)
+            )
         
     
     # Sleep for 1/120 second (120 FPS)
