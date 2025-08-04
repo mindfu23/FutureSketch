@@ -9,29 +9,29 @@ import random
 encoder_pins = [
     ("P8_7", "P8_8"),    # X1 encoder
     ("P8_9", "P8_10"),   # Y1 encoder
-    ("P8_11", "P8_12"),  # X2 encoder
-    ("P8_13", "P8_14"),  # Y2 encoder
+    ("P8_15", "P8_16"),  # X2 encoder
+    ("P8_17", "P8_18"),  # Y2 encoder
     # Additional encoders can be added here
 ]
-
+button_pins = ["P9_11", "P9_13","P9_15", "P9_17"]
 # Min/max limits for each encoder
 min_values = [0, 0, 0, 0]  # X1_MIN, Y1_MIN, X2_MIN, Y2_MIN
-max_values = [15, 15, 15, 15]  # X1_MAX, Y1_MAX, X2_MAX, Y2_MAX
+max_values = [61, 37, 61, 37]  # X1_MAX, Y1_MAX, X2_MAX, Y2_MAX
 
 # Create encoder array
-encoders = REA(encoder_pins, min_values, max_values)
+encoders = REA(encoder_pins, min_values, max_values,button_pins)
 
 receivers = [
             # Primary display receivers (frame 0)
             [
                 {
                     'ip': '192.168.68.111',
-                    'pixel_count': 500,
-                    'addressing_array': imdmx.make_indicesHS(r"Unit1.txt")
+                    'pixel_count': 2356,
+                    'addressing_array': imdmx.make_indicesHS(r"layout.txt")
                 }
             ]]
 
-dat = np.zeros([16,16,3]).astype(np.uint8)
+dat = np.zeros([62,38,3]).astype(np.uint8)
 
 screens = []
 for i in range(len(receivers)):
@@ -62,16 +62,20 @@ time_thresh=300
 time_switch=0
 last_load_time = 0
 while True:
+    buttons=encoders.get_buttons()
+    
     # Get the current positions - update happens in background thread
     positions = encoders.get_positions()
-    if last_positions!=positions:
+    
+    if not np.array_equal(last_positions, positions):
         if (time_switch>0) and (time_thresh>100):
             time_thresh=time_thresh*0.9
         time_current=time.time()
         time_switch=0
+    #print(positions)
     # Fade the entire image
     dat = dat * 0.99995
-    
+    #print(encoders.get_button_presses())
     # Get pairs of positions (X,Y coordinates)
     num_pairs = len(positions) // 2
     
@@ -82,9 +86,10 @@ while True:
         
         # Use modulo to cycle through colors if there are more pairs than colors
         color_index = i % len(pair_colors)
-        
+        color_index=buttons[i]
         # Set the pixel at the current position to full brightness with unique color
         dat[x, y, :] = pair_colors[color_index]
+        
     
     # Sleep for 1/120 second (120 FPS)
     time.sleep(1/120)

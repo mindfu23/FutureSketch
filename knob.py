@@ -4,7 +4,7 @@ import numpy as np
 import threading
 
 class RotaryEncoderArray:
-    def __init__(self, encoder_pins, min_values=None, max_values=None):
+    def __init__(self, encoder_pins, min_values=None, max_values=None,button_pins=None):
         """
         Initialize rotary encoder array.
         
@@ -16,6 +16,7 @@ class RotaryEncoderArray:
         self.encoder_count = len(encoder_pins)
         self.clk_pins = [pins[0] for pins in encoder_pins]
         self.dt_pins = [pins[1] for pins in encoder_pins]
+        self.bt_pins = [pins for pins in button_pins]
         
         # Set default limits if not provided
         self.min_values = min_values if min_values is not None else [0] * self.encoder_count
@@ -23,8 +24,9 @@ class RotaryEncoderArray:
         
         # Initialize positions and last states
         self.positions = np.zeros(self.encoder_count, dtype=int)
+        self.button_state=np.zeros(self.encoder_count, dtype=int)
         self.clk_last_states = []
-        
+        self.bt_last_states = []
         # Thread control
         self.running = False
         self.update_thread = None
@@ -35,7 +37,13 @@ class RotaryEncoderArray:
             GPIO.setup(clk_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             GPIO.setup(dt_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
             self.clk_last_states.append(GPIO.input(clk_pin))
+            
         
+        for bt_pin in button_pins:
+            GPIO.setup(bt_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+            self.bt_last_states.append(GPIO.input(bt_pin))
+            
+
         # Start the update thread
         self.start_update_thread()
     
@@ -50,6 +58,7 @@ class RotaryEncoderArray:
             for i in range(self.encoder_count):
                 clk_state = GPIO.input(self.clk_pins[i])
                 dt_state = GPIO.input(self.dt_pins[i])
+                bt_state= GPIO.input(self.bt_pins[i])
                 
                 # Detect rising edge on CLK pin
                 if clk_state != self.clk_last_states[i] and clk_state == 1:
@@ -61,12 +70,21 @@ class RotaryEncoderArray:
                     else:
                         # Counter-clockwise
                         self.positions[i] = max(self.min_values[i], self.positions[i] - 1)
+                        
                     
                     if old_position != self.positions[i]:
                         changed = True
                 
+                
+
+                if bt_state !=self.bt_last_states[i] and bt_state==1:
+                    self.button_state[i]=np.mod(self.button_state[i]+1,5)
+                    
+
+
+
                 self.clk_last_states[i] = clk_state
-        
+                self.bt_last_states[i] = bt_state
         return changed
     
     def _update_loop(self):
@@ -96,6 +114,13 @@ class RotaryEncoderArray:
         """
         with self.lock:
             return self.positions.copy()
+
+    def get_buttons(self):
+        """
+        Returns the current positions as a numpy array.
+        """
+        with self.lock:
+            return self.button_state.copy()
     
     def get_positions_as_pairs(self):
         """
