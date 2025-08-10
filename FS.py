@@ -72,7 +72,7 @@ while True:
         last_buttons=buttons
        # print(buttons)
     # Get the current positions - update happens in background thread
-    #positions = encoders.get_positions()
+    positions = encoders.get_positions()
     
     if not np.array_equal(last_positions, positions):
         if (time_switch>0) and (time_thresh>100):

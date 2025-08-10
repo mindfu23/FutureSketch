@@ -1,0 +1,5 @@
+To stop the service: sudo systemctl stop fs-script.service
+To restart the service: sudo systemctl restart fs-script.service
+To disable running at boot: sudo systemctl disable fs-script.service
+To enable running at boot: sudo systemctl enable fs-script.service
+To view logs: journalctl -u fs-script.service
