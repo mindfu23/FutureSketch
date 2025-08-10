@@ -64,7 +64,9 @@ last_buttons=encoders.get_buttons()
 frame_counter = 0  # Counter to track frames
 time_last_update=time.time()
 time_thresh=30
-time_switch=0
+load_image_time=100
+decay_rate=0.995
+time_switch=1
 last_load_time = 0
 while True:
     buttons=encoders.get_buttons()
@@ -80,7 +82,7 @@ while True:
         time_last_update=time.time()
         time_switch=0
 
-        print(positions)
+        #print(positions)
     # Fade the entire image
     #dat = dat * 0.9995
     #print(encoders.get_button_presses())
@@ -174,7 +176,7 @@ while True:
             time_switch=1
 
         current_time = time.time()
-        if current_time - last_load_time > 100:
+        if current_time - last_load_time > load_image_time:
             filtered_dir = "filtered_saves"
             if os.path.exists(filtered_dir):
                 npz_files = [f for f in os.listdir(filtered_dir) if f.endswith('.npz')]
@@ -203,4 +205,4 @@ while True:
 
         
 
-        dat = dat * 0.995
+        dat = dat * decay_rate

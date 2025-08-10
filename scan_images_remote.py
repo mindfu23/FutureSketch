@@ -110,7 +110,7 @@ def scan_unfiltered_images():
                 
                 # Display the image
                 window_name = f"Image Viewer - {file_name}"
-                cv2.imshow(window_name, img_resized)
+                cv2.imshow(window_name, img_resized[:,:,[2,1,0]])
                 
                 # Wait for keyboard input
                 while True:
