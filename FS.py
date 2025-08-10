@@ -9,14 +9,18 @@ import random
 encoder_pins = [
     ("P8_7", "P8_8"),    # X1 encoder
     ("P8_9", "P8_10"),   # Y1 encoder
-    ("P8_15", "P8_16"),  # X2 encoder
-    ("P8_17", "P8_18"),  # Y2 encoder
+    ("P8_11", "P8_12"),  # X2 encoder
+    ("P8_13", "P8_14"),  # Y2 encoder
+     ("P8_15", "P8_16"),  # X2 encoder
+    ("P8_17", "P8_18"),  # Y2 encoder   
+     ("P9_11", "P9_12"),  # X2 encoder
+    ("P9_13", "P9_14"),  # Y2 encoder   
     # Additional encoders can be added here
 ]
-button_pins = ["P9_11", "P9_13","P9_15", "P9_17"]
+button_pins = ["P9_15", "P9_16","P9_17", "P9_18","P9_21", "P9_22","P9_23", "P9_24"]
 # Min/max limits for each encoder
-min_values = [0, 0, 0, 0]  # X1_MIN, Y1_MIN, X2_MIN, Y2_MIN
-max_values = [61, 37, 61, 37]  # X1_MAX, Y1_MAX, X2_MAX, Y2_MAX
+min_values = [0, 0, 0, 0,0,0,0,0]  # X1_MIN, Y1_MIN, X2_MIN, Y2_MIN
+max_values = [37,61, 37, 61, 37, 61, 37, 61]  # X1_MAX, Y1_MAX, X2_MAX, Y2_MAX
 
 # Create encoder array
 encoders = REA(encoder_pins, min_values, max_values,button_pins)
@@ -31,7 +35,7 @@ receivers = [
                 }
             ]]
 
-dat = np.zeros([62,38,3]).astype(np.uint8)
+dat = np.zeros([38,62,3]).astype(np.uint8)
 
 screens = []
 for i in range(len(receivers)):
@@ -56,25 +60,29 @@ pair_colors = [
 
 # Store last positions
 last_positions = encoders.get_positions().copy()
+last_buttons=encoders.get_buttons()
 frame_counter = 0  # Counter to track frames
-time_current=time.time()
-time_thresh=300
+time_last_update=time.time()
+time_thresh=30
 time_switch=0
 last_load_time = 0
 while True:
     buttons=encoders.get_buttons()
-    
+    if not np.array_equal(buttons, last_buttons):
+        last_buttons=buttons
+       # print(buttons)
     # Get the current positions - update happens in background thread
-    positions = encoders.get_positions()
+    #positions = encoders.get_positions()
     
     if not np.array_equal(last_positions, positions):
         if (time_switch>0) and (time_thresh>100):
             time_thresh=time_thresh*0.9
-        time_current=time.time()
+        time_last_update=time.time()
         time_switch=0
-    #print(positions)
+
+        print(positions)
     # Fade the entire image
-    dat = dat * 0.99995
+    #dat = dat * 0.9995
     #print(encoders.get_button_presses())
     # Get pairs of positions (X,Y coordinates)
     num_pairs = len(positions) // 2
@@ -91,7 +99,7 @@ while True:
         size = buttons[i*2]
         
         # Calculate radius based on size value (0-4)
-        radius = int(size * 0.5)  # Size 0 = radius 0, Size 4 = radius 2
+        radius = int(0.5+size * 0.75)  # Size 0 = radius 0, Size 4 = radius 2
         
         # Create coordinates for all pixels within radius
         y_indices, x_indices = np.ogrid[-radius:radius+1, -radius:radius+1]
@@ -99,35 +107,46 @@ while True:
         distances = np.sqrt(x_indices**2 + y_indices**2)
         
         # Calculate intensity falloff (1.0 at center, decreasing outward)
-        intensity = np.clip(1.0 - distances/max(radius, 1), 0, 1)
+        intensity = np.clip(1.0 - distances/max(0.5+size * 0.75, 1), 0, 1)**2
         
+        # Calculate bounds for the spot
+        # Calculate bounds for the spot
         # Calculate bounds for the spot
         y_min = max(0, y - radius)
         y_max = min(dat.shape[1] - 1, y + radius)
         x_min = max(0, x - radius)
         x_max = min(dat.shape[0] - 1, x + radius)
         
-        # Calculate indices within array bounds
-        array_y_indices = np.arange(y_min, y_max + 1)
-        array_x_indices = np.arange(x_min, x_max + 1)
-        
-        # Adjust distances/intensities to match array bounds
-        y_offset = y_min - (y - radius)
-        x_offset = x_min - (x - radius)
-        sub_intensity = intensity[y_offset:y_offset + len(array_y_indices), 
-                                x_offset:x_offset + len(array_x_indices)]
-        
-        # Apply the spot with intensity falloff
-        for color_channel in range(3):
-            color_value = pair_colors[color_index][color_channel]
-            # Broadcasting the intensity across the region
-            intensity_contribution = np.outer(sub_intensity, np.ones(len(array_x_indices))) * color_value
-            # Update the corresponding region in the data array
-            dat[np.ix_(array_x_indices, array_y_indices)][color_channel] = np.maximum(
-                dat[np.ix_(array_x_indices, array_y_indices)][color_channel],
-                intensity_contribution.T.astype(np.uint8)
-            )
-        
+        # Make sure we have valid ranges before proceeding
+        if y_min <= y_max and x_min <= x_max:
+            # Calculate indices within array bounds
+            array_y_indices = np.arange(y_min, y_max + 1)
+            array_x_indices = np.arange(x_min, x_max + 1)
+            
+            # Ensure we have non-empty arrays
+            if len(array_y_indices) > 0 and len(array_x_indices) > 0:
+                # Adjust distances/intensities to match array bounds
+                y_offset = y_min - (y - radius)
+                x_offset = x_min - (x - radius)
+                sub_intensity = intensity[y_offset:y_offset + len(array_y_indices), 
+                                        x_offset:x_offset + len(array_x_indices)]
+                
+                # Get the intensity matrix properly shaped for broadcasting
+                intensity_matrix = sub_intensity.T
+                
+                # Apply the spot with intensity falloff for each color channel
+                for color_channel in range(3):
+                    color_value = pair_colors[color_index][color_channel]
+                    
+                    # Direct indexing to avoid dimension issues
+                    current_values = dat[x_min:x_max+1, y_min:y_max+1, color_channel]
+                    new_values = (intensity_matrix * color_value).astype(np.uint8)
+                    
+                    # Update with maximum values
+                    dat[x_min:x_max+1, y_min:y_max+1, color_channel] = np.maximum(
+                        current_values, new_values
+                    )
+
     
     # Sleep for 1/120 second (120 FPS)
     time.sleep(1/120)
@@ -141,7 +160,7 @@ while True:
     
     # Update last positions
     last_positions = positions.copy()
-    time_dif=time.time()-time_current
+    time_dif=time.time()-time_last_update
     if time_dif>time_thresh:
         if time_switch==0:
             # Save dat to a timestamped .npz file
